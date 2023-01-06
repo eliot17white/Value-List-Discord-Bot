@@ -12,7 +12,7 @@ const fs = require("fs");
 const DBClient = require("@replit/database");
 const db = new DBClient();
 
-let commandList = [];
+let commandlist = [];
 let modules = [];
 
 const keepalive = require("./keepalive.js") // starts http
