@@ -1,85 +1,64 @@
-const { MessageEmbed } = require('discord.js');
-const chart = require('chart.js')
+/*
+commands/vot.js
+Purpose: Command to graph the value over time of any item
+Written by Zolohyr
+*/
+
 const chartimg = require('chart.js-image')
 
-function capitalizeFirstLetter(string) {
-  return string.charAt(0).toUpperCase() + string.slice(1);
-}
-
-function nFormatter(number){
-  var letters = ["", "k", "M", "B", "T", "Qa", "Q"]
+exports.run = async (commandName, client, message, args, db, modules) => {
+  let util = modules['util']
+  let capitalizeFirstLetter = util.capitalizeFirstLetter
+  let parseInput = util.parseInput
   
-    var tier = Math.log10(Math.abs(number)) / 3 | 0;
-
-    if(tier == 0) return number;
-
-    var suffix = letters[tier];
-    var scale = Math.pow(10, tier * 3);
-    var scaled = number / scale;
-
-    return scaled.toFixed(2).replace(/[.,]00$/, "") + suffix;
-}
-
-function makeString(name, info) {
-  let n = capitalizeFirstLetter(name)
-  let p = info.Currency == 'b' && info.Price || `$${nFormatter(info.Price)}`
-  let c = info.Currency == 'b' && (info.Price == 1 && 'Brulee' || 'Brulees') || 'Cash'
-  let mv = info.Currency == 'b' && `($${nFormatter(mp * info.Price)})` || ``
-  let f = info.Flag && `[${flags[info.Flag] && flags[info.Flag] || `err`}]` || ``
-
-  return `\n${n} - ${p} ${c} ${mv} ${f}`
-}
-
-exports.run = async (commandName, client, message, args, db) => {
   valueList = await db.get('Values');
   flags = await db.get('Flags');
   mp = await db.get('Brulee');
   
-  let name = args[0]
-
+  let name = args.join('')
+  
   if(!(name)) {
     return message.reply(`You must a value to look up!`)
   }
 
-  let itemName
-  let info
+  // define needed functions, db values, checks required args
   
-  for (const [n, inf] of Object.entries(valueList)) {
-    if(n.startsWith(name.toLowerCase())) {
-      if(name == 'volt' && n == 'volt4x4') { continue }
-      itemName = n
-      info = inf
-    }
-   }
+  let parsed = await parseInput(valueList, name)
   
-  if(info == undefined) {
+  if(parsed == undefined) {
     return message.reply(`Unable to find ${name}`)
-  }
+  } // if item is not found, return
+  
 
-  let overtime = await db.get(itemName)
+  let itemName = parsed.name
+  let display = parsed.display
+
+  let overtime = await db.get(itemName) // get vot db slot
   let labels = []
   let dataset = []
 
   if(!overtime || Object.keys(overtime).length < 2) {
-    return message.reply(`This item's price has never changed, unable to graph`)
+    return message.reply(`This item's price has never changed, unable to graph`) // if 0 or 1 points of data, can't graph. return
   }
 
   for (const [unix, price] of Object.entries(overtime)) {
     var date = new Date(unix * 1000);
     var label = `${date.getFullYear()}-${date.getMonth() + 1}-${date.getDate()}`
+    // create date in YYYY-MM-DD format for international use
     labels.push(label)
     dataset.push(price)
+    // push label and price into respective arrays
   }
 
   const data = {
     labels: labels,
     datasets: [{
-      label: `${capitalizeFirstLetter(itemName)} Price ($)`,
+      label: `${capitalizeFirstLetter(display)} Price ($)`,
       data: dataset,
       fill: false,
       borderColor: 'rgb(75, 192, 192)',
       tension: 0.1
-    }]
+    }] // data object for chart
   }
 
   const config = chartimg().chart({
@@ -90,14 +69,16 @@ exports.run = async (commandName, client, message, args, db) => {
     .width(500)
     .height(300)
 
+  // create chart itself, get url
+
   let file = config.toURL();
 
 
   message.channel.send({
-    content: `Here is the graph for ${capitalizeFirstLetter(itemName)} price over time:`,
+    content: `Here is the graph for ${capitalizeFirstLetter(display)} price over time:`,
     files: [{
       attachment: file,
       name: 'file.png'
     }]
-  })
+  }) // send to channel
 }

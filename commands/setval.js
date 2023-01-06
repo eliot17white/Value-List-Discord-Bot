@@ -1,22 +1,34 @@
+/*
+commands/setval.js
+Purpose: Command to set the value or an item
+Written by Zolohyr
+*/
+
 exports.run = async (commandName, client, message, args, db) => {
   let valueList = await db.get('Values');
-  let mv = await db.get('Brulee')
+  let mp = await db.get('Brulee')
+  // get values and market price
 
-  let Name = args[0]
-  let Price = args[1]
-  let Currency = args[2]
-  let Flag = args[3]
+  let Name = args[0] // required, name of item
+  let Price = args[1] // required, price
+  let Currency = args[2] // required, currency. either 'b' or 'c'
+  let Flag = args[3] // optional flag index
 
   if(message.author.id == 349929215573098507 || message.author.id == 906894880310194236) {
+    // change to role check in production
 
-    if(Name == 'mv') {
+    if(Name == 'mp') { // setting market price
       db.set('Brulee', Price)
       
-      let overtime = await db.get('mp')
+      let overtime = await db.get('brulee')
       if(!overtime) { overtime = {} }
       overtime[Math.floor(Date.now()/1000)] = Price
         
-      db.set('mp', overtime)
+      db.set('brulee', overtime)
+
+      message.delete()
+
+      // set value over time with timestamp and delete message
 
       return
     }
@@ -32,22 +44,27 @@ exports.run = async (commandName, client, message, args, db) => {
     if(valueList == undefined) {
       valueList = {}
     }
+
+    // make sure all args are valid
     
     valueList[Name.toLowerCase()] = {
       'Price': Price,
       'Currency': Currency,
       'Flag': Flag
-    }
+    } // set value
 
     db.set('Values', valueList)
 
+    // set in db
+
     let overtime = await db.get(Name.toLowerCase())
     if(!overtime) { overtime = {} }
-    overtime[Math.floor(Date.now()/1000)] = Currency == 'b' && Price * mv || Price
-      
-    db.set(Name.toLowerCase(), overtime)
+    overtime[Math.floor(Date.now()/1000)] = Currency == 'b' && Price * mp || Price // set timestamp in dict to price in CASH as brulees can change over time
 
-    //message.channel.send('Done.')
+    db.set(Name.toLowerCase(), overtime)
+    // save
+    
+
     message.delete()
   } else {
     return message.reply(`You don't have permission to do that.`)
